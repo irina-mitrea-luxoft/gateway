@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.kaazing.gateway.transport.wseb.logging;
+package org.kaazing.gateway.transport.wseb.logging.loginmodule;
 
 import java.security.Principal;
 import java.util.Map;
@@ -24,21 +24,24 @@ import javax.security.auth.login.FailedLoginException;
 import javax.security.auth.login.LoginException;
 import javax.security.auth.spi.LoginModule;
 
+import com.sun.security.auth.UnixPrincipal;
 import org.kaazing.gateway.security.auth.config.parse.DefaultUserConfig;
 
-
-public class BasicLoginModuleWithMultiplePrincipalsOnTheSubject implements LoginModule {
+/**
+ * A simple basic authentication login module.
+ */
+public class BasicLoginModuleWithDefaultUserConfig implements LoginModule {
 
     private static final String TEST_PRINCIPAL_PASS = "testPrincipalPass";
     private static final String TEST_PRINCIPAL_NAME = "testPrincipalName";
     private DefaultUserConfig defaultPrincipal = new DefaultUserConfig();
 
     // initial state
-    private Subject subject;
+    protected Subject subject;
     private Map<String, ?> sharedState;
 
     // the authentication status
-    private boolean succeeded;
+    protected boolean succeeded;
     private boolean commitSucceeded;
 
     // testUser's RolePrincipal
@@ -51,7 +54,6 @@ public class BasicLoginModuleWithMultiplePrincipalsOnTheSubject implements Login
         this.subject = subject;
         this.sharedState = sharedState;
     }
-
 
     @Override
     public boolean login() throws LoginException {
@@ -88,11 +90,6 @@ public class BasicLoginModuleWithMultiplePrincipalsOnTheSubject implements Login
             defaultPrincipal.setPassword(TEST_PRINCIPAL_PASS);
             subject.getPrincipals().add(defaultPrincipal);
 
-            DefaultUserConfig defaultPrincipal2 = new DefaultUserConfig();
-            defaultPrincipal2.setName("secondPrincipalName");
-            defaultPrincipal2.setPassword("secondPrincipalPassword");
-            subject.getPrincipals().add(defaultPrincipal2);
-
             return true;
         }
     }
@@ -124,8 +121,6 @@ public class BasicLoginModuleWithMultiplePrincipalsOnTheSubject implements Login
 
         return true;
     }
-
-
 
     private static class RolePrincipal implements Principal {
 

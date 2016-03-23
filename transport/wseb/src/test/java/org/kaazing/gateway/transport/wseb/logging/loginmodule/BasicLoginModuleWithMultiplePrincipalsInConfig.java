@@ -13,33 +13,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.kaazing.gateway.security.auth.config.parse;
+package org.kaazing.gateway.transport.wseb.logging.loginmodule;
 
-import org.kaazing.gateway.security.auth.config.UserConfig;
+import com.sun.security.auth.UnixPrincipal;
+import javax.security.auth.login.LoginException;
 
-import java.util.Collection;
-import java.util.HashSet;
+public class BasicLoginModuleWithMultiplePrincipalsInConfig extends BasicLoginModuleWithDefaultUserConfig{
 
-public class TestConfig implements UserConfig {
+    private UnixPrincipal unixPrincipal = new UnixPrincipal("unixPrincipalName");
 
-    private String name = "TestName";
-    private String password = "TestPassword";
-    private Collection<String> roleNames;
-
-    public TestConfig() {
-        roleNames = new HashSet<>();
+    @Override
+    public boolean commit() throws LoginException {
+        super.commit();
+        subject.getPrincipals().add(unixPrincipal);
+        return succeeded;
     }
-
-    public String getName() {
-        return name;
-    }
-
-    public Collection<String> getRoleNames() {
-        return roleNames;
-    }
-
-    public String getPassword() {
-        return password;
-    }
-
 }
