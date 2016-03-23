@@ -56,6 +56,7 @@ import org.junit.Test;
 import org.kaazing.gateway.resource.address.Comparators;
 import org.kaazing.gateway.resource.address.ResourceAddress;
 import org.kaazing.gateway.resource.address.ResourceAddressFactory;
+import org.kaazing.gateway.resource.address.uri.URIUtils;
 
 public class WsResourceAddressFactorySpiTest {
     private final ResourceAddressFactory addressFactory = ResourceAddressFactory.newResourceAddressFactory();
@@ -78,7 +79,7 @@ public class WsResourceAddressFactorySpiTest {
         options.put("ws.inactivityTimeout", SECONDS.toMillis(5));
         options.put("ws.supportedProtocols", new String[] { "amqp/0.91", "amqp/1.0" });
         options.put("ws.requiredProtocols", new String[] { "amqp/0.91", "amqp/1.0" });
-        options.put("ws.transport", URI.create("http://localhost:2121/"));
+        options.put("ws.transport", "http://localhost:2121/");
     }
 
     @Test
@@ -137,14 +138,14 @@ public class WsResourceAddressFactorySpiTest {
     public void shouldCreateAddressWithDefaultTransport() throws Exception {
         ResourceAddress address = addressFactorySpi.newResourceAddress(addressURI);
         assertNotNull(address.getOption(TRANSPORT_URI));
-        assertEquals(URI.create("http://localhost:2020/"), address.getOption(TRANSPORT_URI));
+        assertEquals("http://localhost:2020/", address.getOption(TRANSPORT_URI));
     }
     
     @Test
     public void shouldCreateAddressWithTransport() throws Exception {
         ResourceAddress address = addressFactorySpi.newResourceAddress(addressURI, options);
         assertNotNull(address.getOption(TRANSPORT_URI));
-        assertEquals(URI.create("http://localhost:2121/"), address.getOption(TRANSPORT_URI));
+        assertEquals("http://localhost:2121/", address.getOption(TRANSPORT_URI));
     }
 
     @Test
@@ -166,16 +167,16 @@ public class WsResourceAddressFactorySpiTest {
         ResourceAddress address = addressFactory.newResourceAddress(addressURI);
 
         ResourceAddress wse = address.getOption(ALTERNATE);
-        assertEquals("wse", wse.getExternalURI().getScheme());
+        assertEquals("wse", URIUtils.getScheme(wse.getExternalURI()));
 
         ResourceAddress wsx = wse.getOption(ALTERNATE);
-        assertEquals("wsx", wsx.getExternalURI().getScheme());
+        assertEquals("wsx", URIUtils.getScheme(wsx.getExternalURI()));
 
         ResourceAddress wsdraft = wsx.getOption(ALTERNATE);
-        assertEquals("ws-draft", wsdraft.getExternalURI().getScheme());
+        assertEquals("ws-draft", URIUtils.getScheme(wsdraft.getExternalURI()));
 
         ResourceAddress wsxdraft = wsdraft.getOption(ALTERNATE);
-        assertEquals("wsx-draft", wsxdraft.getExternalURI().getScheme());
+        assertEquals("wsx-draft", URIUtils.getScheme(wsxdraft.getExternalURI()));
 
     }
 
@@ -252,7 +253,7 @@ public class WsResourceAddressFactorySpiTest {
         assertNotEquals(0, cmp.compare(addr1, addr4));
 
         options = new HashMap<>();
-        options.put("http.transport", new URI("tcp://localhost:8002"));
+        options.put("http.transport", "tcp://localhost:8002");
         ResourceAddress addr5 = addressFactory.newResourceAddress("ws://localhost:8001/echo", options);
         assertNotEquals(0, cmp.compare(addr1, addr5));
     }
@@ -292,7 +293,7 @@ public class WsResourceAddressFactorySpiTest {
     private ResourceAddress makeLayeredResourceAddress(int port) throws Exception {
         Map<String, Object> options = new HashMap<>();
         options.put("tcp.nextProtocol", "http/1.1");
-        options.put("tcp.transport", URI.create("tcp://localhost:"+port));
+        options.put("tcp.transport", "tcp://localhost:"+port);
         ResourceAddress tcp = addressFactory.newResourceAddress("tcp://localhost:8005", options);
 
         ResourceAddress addr1 = addressFactory.newResourceAddress("http://localhost:8002/echo", "ws/rfc6455");

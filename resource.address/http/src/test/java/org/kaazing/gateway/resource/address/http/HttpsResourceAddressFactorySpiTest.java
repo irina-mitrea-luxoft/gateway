@@ -39,8 +39,8 @@ import org.junit.Test;
 import org.kaazing.gateway.resource.address.ResourceAddress;
 import org.kaazing.gateway.resource.address.ResourceAddressFactory;
 import org.kaazing.gateway.resource.address.ResourceOption;
-import org.kaazing.gateway.resource.address.URIUtils;
 import org.kaazing.gateway.resource.address.ssl.SslResourceAddress;
+import org.kaazing.gateway.resource.address.uri.URIUtils;
 
 public class HttpsResourceAddressFactorySpiTest {
 
@@ -58,7 +58,7 @@ public class HttpsResourceAddressFactorySpiTest {
         options.put("http.keepAliveTimeout", (int) SECONDS.toMillis(5));
         options.put("http.realmName", "demo");
         options.put("http.requiredRoles", new String[] { "admin" });
-        options.put("http.transport", URI.create("ssl://localhost:2121"));
+        options.put("http.transport", "ssl://localhost:2121");
     }
 
     @Test
@@ -110,14 +110,14 @@ public class HttpsResourceAddressFactorySpiTest {
         ResourceAddressFactory addressFactory = ResourceAddressFactory.newResourceAddressFactory();
         ResourceAddress address = addressFactory.newResourceAddress(addressURI);
         assertNotNull(address.getOption(TRANSPORT_URI));
-        assertEquals(URI.create("ssl://localhost:2020"), address.getOption(TRANSPORT_URI));
+        assertEquals("ssl://localhost:2020", address.getOption(TRANSPORT_URI));
     }
     
     @Test
     public void shouldCreateAddressWithTransport() throws Exception {
         ResourceAddress address = addressFactorySpi.newResourceAddress(addressURI, options);
         assertNotNull(address.getOption(TRANSPORT_URI));
-        assertEquals(URI.create("ssl://localhost:2121"), address.getOption(TRANSPORT_URI));
+        assertEquals("ssl://localhost:2121", address.getOption(TRANSPORT_URI));
     }
 
     @Test

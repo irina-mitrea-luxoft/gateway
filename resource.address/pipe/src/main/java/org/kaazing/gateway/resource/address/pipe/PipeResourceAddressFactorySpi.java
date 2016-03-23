@@ -21,7 +21,7 @@ import java.net.URI;
 
 import org.kaazing.gateway.resource.address.ResourceAddressFactorySpi;
 import org.kaazing.gateway.resource.address.ResourceFactory;
-import org.kaazing.gateway.resource.address.URIUtils;
+import org.kaazing.gateway.resource.address.uri.URIUtils;
 
 public class PipeResourceAddressFactorySpi extends ResourceAddressFactorySpi<PipeResourceAddress> {
 
@@ -29,8 +29,8 @@ public class PipeResourceAddressFactorySpi extends ResourceAddressFactorySpi<Pip
 
     private static final String PROTOCOL_NAME = "pipe";
 
-    private static final String PIPE_PATH_ERROR_MESSAGE = "Using pipe://%s instead of pipe://%s%s "
-            + "because paths are ignored for pipe:// URIs. See 'pipe://' in the documentation for more details.";
+    private static final String PIPE_PATH_ERROR_MESSAGE = "Use pipe://%s instead of pipe://%s%s "
+                                        + "because named pipe URIs shouldn't contain paths.";
 
     @Override
     public String getSchemeName() {
@@ -68,9 +68,8 @@ public class PipeResourceAddressFactorySpi extends ResourceAddressFactorySpi<Pip
             throw new IllegalArgumentException(String.format(PIPE_PATH_ERROR_MESSAGE, pipeName, pipeName, pathName));
         }
 
-        URI uriOriginal = URI.create(original);
         URI uriLocation = URI.create(location);
-        return new PipeResourceAddress(this, uriOriginal, uriLocation);
+        return new PipeResourceAddress(this, original, uriLocation);
 
     }
 

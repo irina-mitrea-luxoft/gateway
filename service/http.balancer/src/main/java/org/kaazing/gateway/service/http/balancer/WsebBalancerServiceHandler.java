@@ -15,10 +15,10 @@
  */
 package org.kaazing.gateway.service.http.balancer;
 
-import static org.kaazing.gateway.resource.address.URIUtils.buildURIAsString;
-import static org.kaazing.gateway.resource.address.URIUtils.getAuthority;
-import static org.kaazing.gateway.resource.address.URIUtils.getPath;
-import static org.kaazing.gateway.resource.address.URIUtils.getScheme;
+import static org.kaazing.gateway.resource.address.uri.URIUtils.buildURIAsString;
+import static org.kaazing.gateway.resource.address.uri.URIUtils.getAuthority;
+import static org.kaazing.gateway.resource.address.uri.URIUtils.getPath;
+import static org.kaazing.gateway.resource.address.uri.URIUtils.getScheme;
 
 import java.net.URI;
 import java.util.ArrayList;
@@ -36,6 +36,7 @@ import org.kaazing.gateway.transport.http.HttpAcceptSession;
 import org.kaazing.gateway.transport.http.HttpStatus;
 import org.kaazing.gateway.transport.wseb.WsebAcceptor;
 import org.kaazing.gateway.util.GL;
+
 
 class WsebBalancerServiceHandler extends IoHandlerAdapter<HttpAcceptSession> {
     private Collection<String> accepts;
@@ -76,13 +77,12 @@ class WsebBalancerServiceHandler extends IoHandlerAdapter<HttpAcceptSession> {
         List<String> availableBalanceeURIs = getBalanceeURIs(session.isSecure());
 
         if (availableBalanceeURIs.isEmpty()) {
-            GL.debug("ha", "Rejected {} request for URI \"{}\" on session {}: no available balancee URI was found",
-                        session.getMethod(), session.getRequestURI(), session);
-            session.setStatus(HttpStatus.CLIENT_NOT_FOUND);
+            GL.warn(GL.CLUSTER_LOGGER_NAME, "Rejected {} request for URI \"{}\" on session {}: no available balancee URI was found",                        session.getMethod(), session.getRequestURI(), session);
+           session.setStatus(HttpStatus.CLIENT_NOT_FOUND);
         } else {
 
             String selectedBalanceeURI = availableBalanceeURIs.get((int) (Math.random() * availableBalanceeURIs.size()));
-            GL.info("ha", "Selected Balancee URI: {}", selectedBalanceeURI);
+            GL.debug(GL.CLUSTER_LOGGER_NAME, "WsebBalancerServiceHandler doSessionOpen Selected Balancee URI: {}", selectedBalanceeURI);
 
             URI requestURI = session.getRequestURI();
             String balanceeScheme = getScheme(selectedBalanceeURI);
@@ -124,7 +124,7 @@ class WsebBalancerServiceHandler extends IoHandlerAdapter<HttpAcceptSession> {
         if (accepts != null &&
             collectionsFactory != null) {
 
-            Lock mapLock = getLock(HttpBalancerService.MEMBERID_BALANCER_MAP_NAME);
+            Lock mapLock = getLock(HttpBalancerService.BALANCER_MAP_NAME);
             try {
                 mapLock.lock();
                 // Get the map of balance URIs to accept URIs from the cluster.
@@ -161,9 +161,10 @@ class WsebBalancerServiceHandler extends IoHandlerAdapter<HttpAcceptSession> {
                 sb.append("cluster context collections factory is null");
             }
 
-            GL.info("ha", sb.toString());
+            GL.debug("CLUSTER_LOGGER_NAME", sb.toString());
         }
-
+        GL.debug(GL.CLUSTER_LOGGER_NAME,"Exit WsebBalancerService.getBalanceeURIs");
+        clusterContext.logClusterState();
         return balanceeURIs;
     }
 

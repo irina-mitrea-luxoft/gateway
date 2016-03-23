@@ -15,6 +15,10 @@
  */
 package org.kaazing.gateway.server;
 
+import java.util.Map;
+import java.util.Properties;
+
+import org.kaazing.gateway.server.context.GatewayContext;
 import org.kaazing.gateway.service.ServiceContext;
 
 /**
@@ -75,12 +79,17 @@ public abstract class GatewayObserverFactorySpiPrototype extends GatewayObserver
     }
 
     @Override
-    public void startingGateway() {
+    public void startingGateway(GatewayContext gatewayContext) {
         // NOOP: to be extended as desired
     }
 
     @Override
-    public void stoppedGateway() {
+    public void stoppedGateway(GatewayContext gatewayContext) {
+        // NOOP: to be extended as desired
+    }
+
+    @Override
+    public void initingGateway(Properties properties, Map<String, Object> injectables) {
         // NOOP: to be extended as desired
     }
 }

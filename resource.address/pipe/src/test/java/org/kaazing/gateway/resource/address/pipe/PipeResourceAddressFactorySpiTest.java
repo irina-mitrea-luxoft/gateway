@@ -23,12 +23,13 @@ import static org.kaazing.gateway.resource.address.ResourceAddress.QUALIFIER;
 import static org.kaazing.gateway.resource.address.ResourceAddress.TRANSPORT;
 import static org.kaazing.gateway.resource.address.ResourceAddress.TRANSPORT_URI;
 
-import java.net.URI;
 import java.util.HashMap;
 import java.util.Map;
 
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 import org.kaazing.gateway.resource.address.ResourceAddress;
 
 public class PipeResourceAddressFactorySpiTest {
@@ -36,6 +37,9 @@ public class PipeResourceAddressFactorySpiTest {
     private PipeResourceAddressFactorySpi addressFactorySpi;
     private String addressURI;
     private Map<String, Object> options;
+    
+    @Rule
+    public ExpectedException expectedException = ExpectedException.none();
 
     @Before
     public void before() {
@@ -44,7 +48,7 @@ public class PipeResourceAddressFactorySpiTest {
         options = new HashMap<>();
         options.put("pipe.nextProtocol", "custom");
         options.put("pipe.qualifier", "random");
-        options.put("pipe.transport", URI.create("socks://localhost:2121"));
+        options.put("pipe.transport", "socks://localhost:2121");
     }
 
     @Test
@@ -95,11 +99,14 @@ public class PipeResourceAddressFactorySpiTest {
     public void shouldCreateAddressWithTransport() throws Exception {
         ResourceAddress address = addressFactorySpi.newResourceAddress(addressURI, options);
         assertNotNull(address.getOption(TRANSPORT_URI));
-        assertEquals(URI.create("socks://localhost:2121"), address.getOption(TRANSPORT_URI));
+        assertEquals("socks://localhost:2121", address.getOption(TRANSPORT_URI));
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void shouldNotUsePathInPipeURL() throws Exception {
+        expectedException.expect(IllegalArgumentException.class);
+        expectedException.expectMessage("Use pipe://customera instead of pipe://customera/app1 because "
+            + "named pipe URIs shouldn't contain paths.");
         addressFactorySpi.newResourceAddress("pipe://customera/app1");
     }
 

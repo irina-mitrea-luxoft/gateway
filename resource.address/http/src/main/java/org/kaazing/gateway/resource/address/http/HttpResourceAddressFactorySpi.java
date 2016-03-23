@@ -59,7 +59,7 @@ import org.kaazing.gateway.resource.address.ResourceAddress;
 import org.kaazing.gateway.resource.address.ResourceAddressFactorySpi;
 import org.kaazing.gateway.resource.address.ResourceFactory;
 import org.kaazing.gateway.resource.address.ResourceOptions;
-import org.kaazing.gateway.resource.address.URIUtils;
+import org.kaazing.gateway.resource.address.uri.URIUtils;
 import org.kaazing.gateway.security.CrossSiteConstraintContext;
 import org.kaazing.gateway.security.LoginContextFactory;
 
@@ -221,7 +221,7 @@ public class HttpResourceAddressFactorySpi extends ResourceAddressFactorySpi<Htt
             options.setOption(GATEWAY_ORIGIN_SECURITY, new GatewayHttpOriginSecurity(authorityToSetOfAcceptConstraintsByURI));
         }
 
-        Collection<URI> balanceOrigin = (Collection<URI>) optionsByName.remove(BALANCE_ORIGINS.name());
+        Collection<String> balanceOrigin = (Collection<String>) optionsByName.remove(BALANCE_ORIGINS.name());
         if (balanceOrigin != null) {
             options.setOption(BALANCE_ORIGINS, balanceOrigin);
         }
@@ -299,9 +299,8 @@ public class HttpResourceAddressFactorySpi extends ResourceAddressFactorySpi<Htt
             throw new IllegalArgumentException(format("Missing path in URI: %s", location));
         }
         
-        URI uriOriginal = URI.create(original);
         URI uriLocation = URI.create(location);
-        return new HttpResourceAddress(this, uriOriginal, uriLocation);
+        return new HttpResourceAddress(this, original, uriLocation);
     }
 
     @Override

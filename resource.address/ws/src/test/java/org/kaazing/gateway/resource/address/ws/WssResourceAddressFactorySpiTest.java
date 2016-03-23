@@ -47,6 +47,7 @@ import org.junit.Before;
 import org.junit.Test;
 import org.kaazing.gateway.resource.address.ResourceAddress;
 import org.kaazing.gateway.resource.address.ResourceAddressFactory;
+import org.kaazing.gateway.resource.address.uri.URIUtils;
 
 public class WssResourceAddressFactorySpiTest {
 
@@ -68,7 +69,7 @@ public class WssResourceAddressFactorySpiTest {
         options.put("ws.inactivityTimeout", SECONDS.toMillis(5));
         options.put("ws.supportedProtocols", new String[] { "amqp/0.91", "amqp/1.0" });
         options.put("ws.requiredProtocols", new String[] { "amqp/0.91", "amqp/1.0" });
-        options.put("ws.transport", URI.create("https://localhost:2121/"));
+        options.put("ws.transport", "https://localhost:2121/");
     }
 
     @Test
@@ -127,14 +128,14 @@ public class WssResourceAddressFactorySpiTest {
     public void shouldCreateAddressWithDefaultTransport() throws Exception {
         ResourceAddress address = addressFactorySpi.newResourceAddress(addressURI);
         assertNotNull(address.getOption(TRANSPORT_URI));
-        assertEquals(URI.create("https://localhost:2020/"), address.getOption(TRANSPORT_URI));
+        assertEquals("https://localhost:2020/", address.getOption(TRANSPORT_URI));
     }
     
     @Test
     public void shouldCreateAddressWithTransport() throws Exception {
         ResourceAddress address = addressFactorySpi.newResourceAddress(addressURI, options);
         assertNotNull(address.getOption(TRANSPORT_URI));
-        assertEquals(URI.create("https://localhost:2121/"), address.getOption(TRANSPORT_URI));
+        assertEquals("https://localhost:2121/", address.getOption(TRANSPORT_URI));
     }
 
     @Test
@@ -143,16 +144,16 @@ public class WssResourceAddressFactorySpiTest {
         ResourceAddress address = addressFactory.newResourceAddress(addressURI);
 
         ResourceAddress wse = address.getOption(ALTERNATE);
-        assertEquals("wse+ssl", wse.getExternalURI().getScheme());
+        assertEquals("wse+ssl", URIUtils.getScheme(wse.getExternalURI()));
 
         ResourceAddress wsx = wse.getOption(ALTERNATE);
-        assertEquals("wsx+ssl", wsx.getExternalURI().getScheme());
+        assertEquals("wsx+ssl", URIUtils.getScheme(wsx.getExternalURI()));
 
         ResourceAddress wsdraft = wsx.getOption(ALTERNATE);
-        assertEquals("ws-draft+ssl", wsdraft.getExternalURI().getScheme());
+        assertEquals("ws-draft+ssl", URIUtils.getScheme(wsdraft.getExternalURI()));
 
         ResourceAddress wsxdraft = wsdraft.getOption(ALTERNATE);
-        assertEquals("wsx-draft+ssl", wsxdraft.getExternalURI().getScheme());
+        assertEquals("wsx-draft+ssl", URIUtils.getScheme(wsxdraft.getExternalURI()));
 
     }
 

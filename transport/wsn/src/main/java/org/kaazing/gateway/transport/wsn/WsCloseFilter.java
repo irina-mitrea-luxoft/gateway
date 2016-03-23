@@ -17,6 +17,7 @@ package org.kaazing.gateway.transport.wsn;
 
 import static java.lang.String.format;
 import static org.kaazing.gateway.transport.wsn.WsnSession.SESSION_KEY;
+import static org.kaazing.gateway.util.InternalSystemProperty.WS_CLOSE_TIMEOUT;
 
 import java.util.Properties;
 import java.util.concurrent.ScheduledExecutorService;
@@ -33,6 +34,7 @@ import org.apache.mina.filter.codec.ProtocolDecoderException;
 import org.kaazing.gateway.transport.ws.WsCloseMessage;
 import org.kaazing.gateway.transport.ws.WsFilterAdapter;
 import org.kaazing.gateway.transport.ws.WsMessage;
+import org.kaazing.gateway.transport.ws.util.WSMessageTooLongException;
 import org.kaazing.gateway.util.Utils;
 import org.kaazing.gateway.util.ws.WebSocketWireProtocol;
 import org.kaazing.mina.core.future.DefaultWriteFutureEx;
@@ -60,11 +62,6 @@ public class WsCloseFilter
     extends WsFilterAdapter
     implements Runnable {
 
-    public static final String WS_CLOSE_TIMEOUT_PROPERTY_NAME = "org.kaazing.gateway.transport.ws.CLOSE_TIMEOUT";
-
-    // Default timeout to wait for peer's CLOSE, in secs
-    private static final String DEFAULT_CLOSE_TIMEOUT = "5sec";
-
     private final Logger logger;
     private final ScheduledExecutorService scheduler;
 
@@ -72,9 +69,7 @@ public class WsCloseFilter
     private AtomicBoolean receivedCloseFrame;
     private AtomicBoolean timedOut;
 
-    private WebSocketWireProtocol wsVersion;
-
-    private ScheduledFuture closeFuture;
+    private ScheduledFuture<?> closeFuture;
     private NextFilter closeNextFilter;
     private IoSession closeSession;
     private long closeTimeout;
@@ -87,7 +82,6 @@ public class WsCloseFilter
         this.receivedCloseFrame = new AtomicBoolean(false);
         this.timedOut = new AtomicBoolean(false);
 
-        this.wsVersion = wsVersion;
         this.logger = logger;
         assert scheduler != null;
         this.scheduler = scheduler;
@@ -96,23 +90,21 @@ public class WsCloseFilter
         this.closeTimeout = getCloseTimeout(configuration);
     }
 
-    private WebSocketWireProtocol getVersion() {
-        return wsVersion;
-    }
-
     private long getCloseTimeout(Properties configuration) {
-        String timeoutConfig = configuration.getProperty(WS_CLOSE_TIMEOUT_PROPERTY_NAME);
+        String timeoutConfig = WS_CLOSE_TIMEOUT.getProperty(configuration);
 
         // The Utils.parseTimeInterval() method Does The Right Thing(tm) if
         // there is no property value configured for the given property name;
         // that's why we provide a default string parameter.
-        long timeout = Utils.parseTimeInterval(timeoutConfig, TimeUnit.MILLISECONDS, DEFAULT_CLOSE_TIMEOUT);
+        long timeout = Utils.parseTimeInterval(timeoutConfig, TimeUnit.MILLISECONDS);
         if (timeout <= 0) {
-            throw new IllegalArgumentException(format("%s property value \"%s\" is invalid, must be positive", WS_CLOSE_TIMEOUT_PROPERTY_NAME, timeout));
+            throw new IllegalArgumentException(format("%s property value \"%s\" is invalid, must be positive",
+                    WS_CLOSE_TIMEOUT.getPropertyName(), timeout));
         }
 
         if (logger.isTraceEnabled()) {
-            logger.trace(format("Using %s property of %d milliseconds for CLOSE frame timeouts", WS_CLOSE_TIMEOUT_PROPERTY_NAME, timeout));
+            logger.trace(format("Using %s property of %d milliseconds for CLOSE frame timeouts",
+                    WS_CLOSE_TIMEOUT.getPropertyName(), timeout));
         }
 
         return timeout;
@@ -248,7 +240,7 @@ public class WsCloseFilter
                 // in time, we terminate the session anyway.
 
                 if (logger != null && logger.isTraceEnabled()) {
-                    logger.trace(format("sending WS CLOSE frame, then waiting %d milliseconds for peer CLOSE", closeTimeout));
+                    logger.trace(format("sending WS CLOSE frame %s, then waiting %d milliseconds for peer CLOSE", message, closeTimeout));
                 }
                 closeNextFilter = nextFilter;
                 closeSession = session;
@@ -307,7 +299,7 @@ public class WsCloseFilter
             nextFilter.filterClose(session);
             return;
         }
-        
+
         if (!session.isConnected()) {
             if (logger != null && logger.isTraceEnabled()) {
                 logger.trace(format("session is no longer connected - skipping WS CLOSE handshake"));
@@ -326,8 +318,14 @@ public class WsCloseFilter
             // sessionOpened() in upstream closes the session.
             Throwable cause = wsnSession == null ? null : wsnSession.getCloseException();
             WsCloseMessage closeMessage;
-            if (cause != null && cause instanceof ProtocolDecoderException) {
-                closeMessage = WsCloseMessage.PROTOCOL_ERROR;
+            if (cause != null) {
+                if (cause instanceof WSMessageTooLongException) {
+                    closeMessage = WsCloseMessage.MESSAGE_TOO_LONG_ERROR;
+                } else if(cause instanceof ProtocolDecoderException) {
+                    closeMessage = WsCloseMessage.PROTOCOL_ERROR;
+                } else {
+                    closeMessage = WsCloseMessage.NORMAL_CLOSE;
+                }
             } else {
                 closeMessage = WsCloseMessage.NORMAL_CLOSE;
             }

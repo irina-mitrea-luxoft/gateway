@@ -69,7 +69,7 @@ import org.kaazing.gateway.resource.address.Protocol;
 import org.kaazing.gateway.resource.address.ResourceAddress;
 import org.kaazing.gateway.resource.address.ResourceAddressFactory;
 import org.kaazing.gateway.resource.address.ResourceOptions;
-import org.kaazing.gateway.resource.address.URIUtils;
+import org.kaazing.gateway.resource.address.uri.URIUtils;
 import org.kaazing.gateway.resource.address.ws.WsResourceAddress;
 import org.kaazing.gateway.resource.address.wsn.WsnResourceAddressFactorySpi;
 import org.kaazing.gateway.security.auth.context.ResultAwareLoginContext;
@@ -358,20 +358,6 @@ public class WsnAcceptor extends AbstractBridgeAcceptor<WsnSession, WsnBindings.
                         writeFuture = parent.write(parentBuf); // Write on parent session to avoid encoding on ByteSocket connections
                     }
 
-                    // KG-3496: serialize the balancer directive write and the
-                    // session close, so that the close cannot win.  Moved the
-                    // session close to here with the redirectResponse logic.
-                    if (redirectResponse) {
-                        writeFuture.addListener(new IoFutureListener<WriteFuture>() {
-                            @Override
-                            public void operationComplete(WriteFuture future) {
-                                // (KG-6305) Must send a WS CLOSE frame to conform to RFC 6455 so client knows the websocket is closed
-                                if (wsnSession.sendCloseFrame.compareAndSet(true, false)) {
-                                    wsnSession.getParent().write(WsCloseMessage.NORMAL_CLOSE);
-                                }
-                            }
-                        });
-                    }
                 }
             }
 
@@ -460,7 +446,7 @@ public class WsnAcceptor extends AbstractBridgeAcceptor<WsnSession, WsnBindings.
         // even if the address has an alternate, do not bind the alternate
         apiAddressOptions.setOption(BIND_ALTERNATE, Boolean.FALSE);
 
-        String path = appendURI(ensureTrailingSlash(address.getExternalURI()), HttpProtocolCompatibilityFilter.API_PATH).getPath();
+        String path = URIUtils.getPath(appendURI(ensureTrailingSlash(address.getExternalURI()), HttpProtocolCompatibilityFilter.API_PATH));
         String apiLocation = URIUtils.modifyURIPath(URIUtils.uriToString(transport.getResource()), path);
         return resourceAddressFactory.newResourceAddress(apiLocation, apiAddressOptions);
     }
@@ -698,13 +684,14 @@ public class WsnAcceptor extends AbstractBridgeAcceptor<WsnSession, WsnBindings.
         @Override
         protected void doSessionClosed(IoSessionEx session) throws Exception {
             WsnSession wsnSession = SESSION_KEY.remove(session);
-            boolean isWsx = !wsnSession.getLocalAddress().getOption(CODEC_REQUIRED); 
+            boolean isWsx = !wsnSession.getLocalAddress().getOption(CODEC_REQUIRED);
             if (wsnSession != null && !wsnSession.isClosing()) {
                 if (isWsx) {
                     wsnSession.getProcessor().remove(wsnSession);
                 } else {
                     wsnSession.reset(
-                            new IOException("Network connectivity has been lost or transport was closed at other end").fillInStackTrace());
+                            new IOException("Network connectivity has been lost or transport was closed at other end",
+                                    wsnSession.getCloseException()).fillInStackTrace());
                 }
             }
 
@@ -964,7 +951,7 @@ public class WsnAcceptor extends AbstractBridgeAcceptor<WsnSession, WsnBindings.
             }
 
             doUpgradeFailure(session);
-            }
+        }
 
         /*
          * "Application Basic", "Application Token", "Application Negotiate" challenge schemes

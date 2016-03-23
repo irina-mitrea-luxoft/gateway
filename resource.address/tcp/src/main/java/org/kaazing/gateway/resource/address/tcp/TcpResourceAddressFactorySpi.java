@@ -15,16 +15,15 @@
  */
 package org.kaazing.gateway.resource.address.tcp;
 
-import static java.lang.Integer.parseInt;
 import static java.lang.String.format;
 import static org.kaazing.gateway.resource.address.ResourceAddress.RESOLVER;
 import static org.kaazing.gateway.resource.address.ResourceAddress.TRANSPORT;
-import static org.kaazing.gateway.resource.address.URIUtils.getHost;
-import static org.kaazing.gateway.resource.address.URIUtils.getPort;
-import static org.kaazing.gateway.resource.address.URIUtils.modifyURIAuthority;
 import static org.kaazing.gateway.resource.address.tcp.TcpResourceAddress.BIND_ADDRESS;
 import static org.kaazing.gateway.resource.address.tcp.TcpResourceAddress.MAXIMUM_OUTBOUND_RATE;
 import static org.kaazing.gateway.resource.address.tcp.TcpResourceAddress.TRANSPORT_NAME;
+import static org.kaazing.gateway.resource.address.uri.URIUtils.getHost;
+import static org.kaazing.gateway.resource.address.uri.URIUtils.getPort;
+import static org.kaazing.gateway.resource.address.uri.URIUtils.modifyURIAuthority;
 
 import java.net.Inet4Address;
 import java.net.Inet6Address;
@@ -32,6 +31,7 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.UnknownHostException;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
@@ -42,18 +42,25 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import org.kaazing.gateway.resource.address.NameResolver;
+import org.kaazing.gateway.resource.address.ResolutionUtils;
 import org.kaazing.gateway.resource.address.ResourceAddressFactorySpi;
 import org.kaazing.gateway.resource.address.ResourceFactory;
 import org.kaazing.gateway.resource.address.ResourceOptions;
+import org.kaazing.gateway.resource.address.uri.URIUtils;
 
 public class TcpResourceAddressFactorySpi extends ResourceAddressFactorySpi<TcpResourceAddress> {
 
+    private static final String JAVA_NET_PREFER_IPV4_STACK = "java.net.preferIPv4Stack";
     private static final String SCHEME_NAME = "tcp";
     private static final String PROTOCOL_NAME = "tcp";
 
     private static final String FORMAT_IPV4_AUTHORITY = "%s:%d";
     private static final String FORMAT_IPV6_AUTHORITY = "[%s]:%d";
-    private static final Pattern PATTERN_IPV6_HOST = Pattern.compile("\\[([^\\]]+)\\]");
+    // "@" added in the pattern below in order not to match network interface syntax
+    private static final Pattern PATTERN_IPV6_HOST = Pattern.compile("\\[([^@\\]]+)\\]");
+    private static final String PREFER_IPV4_STACK_IPV6_ADDRESS_EXCEPTION_FORMATTER =
+            "Option java.net.preferIPv4Stack is set to true and an IPv6 address was provided in the config. No addresses"
+            + " available for binding for URI: %s.";
 
     @Override
     public String getSchemeName() {
@@ -95,19 +102,8 @@ public class TcpResourceAddressFactorySpi extends ResourceAddressFactorySpi<TcpR
     private InetSocketAddress parseBindAddress(Object bindAddress) {
         if (bindAddress instanceof InetSocketAddress) {
             return (InetSocketAddress) bindAddress;
-        }
-        else if (bindAddress instanceof String) {
-            String[] bindParts = ((String) bindAddress).split(":");
-            switch (bindParts.length) {
-            case 1:
-                // port only
-                return new InetSocketAddress(parseInt(bindParts[0]));
-            case 2:
-                // hostname, port
-                String hostname = bindParts[0];
-                int port = parseInt(bindParts[1]);
-                return new InetSocketAddress(hostname, port);
-            }
+        } else if (bindAddress instanceof String) {
+            return ResolutionUtils.parseBindAddress((String) bindAddress);
         }
 
         throw new IllegalArgumentException(BIND_ADDRESS.name());
@@ -144,7 +140,17 @@ public class TcpResourceAddressFactorySpi extends ResourceAddressFactorySpi<TcpR
                 host = matcher.group(1);
             }
 
-            Collection<InetAddress> inetAddresses = resolver.getAllByName(host);
+            Collection<InetAddress> inetAddresses = new ArrayList<>();
+            Collection<InetAddress> addresses = ResolutionUtils.getAllByName(host, true);
+            // network interface resolution performed
+            if (!addresses.isEmpty()) {
+                for (InetAddress address : addresses) {
+                    inetAddresses.addAll(resolver.getAllByName(address.getHostAddress()));
+                }
+            }
+            else {
+                inetAddresses = resolver.getAllByName(host);
+            }
             assert (!inetAddresses.isEmpty());
 
             // The returned collection appears to be unmodifiable, so first clone the list (ugh!)
@@ -162,7 +168,7 @@ public class TcpResourceAddressFactorySpi extends ResourceAddressFactorySpi<TcpR
                 }
             }
 
-            boolean preferIPv4 = "true".equalsIgnoreCase(System.getProperty("java.net.preferIPv4Stack"));
+            boolean preferIPv4 = "true".equalsIgnoreCase(System.getProperty(JAVA_NET_PREFER_IPV4_STACK));
             if (!preferIPv4) {
                 // Add all the remaning (IPv6) addresses.  Because InetAddress.getAllByName() is lame
                 // and returns duplicates when java.net.preferIPv4Stack is true, I have to add them
@@ -191,14 +197,17 @@ public class TcpResourceAddressFactorySpi extends ResourceAddressFactorySpi<TcpR
         catch (UnknownHostException e) {
             throw new IllegalArgumentException(format("Unable to resolve DNS name: %s", getHost(location)), e);
         }
- 
+
+        if (tcpAddresses.isEmpty()) {
+            throwPreferedIPv4StackIPv6AddressError(location, tcpAddresses);
+        }
+
         return tcpAddresses;
     }
 
     @Override
     protected TcpResourceAddress newResourceAddress0(String original, String location) {
 
-        URI uriOriginal = URI.create(original);
         URI uriLocation = URI.create(location);
         String path = uriLocation.getPath();
 
@@ -214,7 +223,7 @@ public class TcpResourceAddressFactorySpi extends ResourceAddressFactorySpi<TcpR
             throw new IllegalArgumentException(format("Unexpected path \"%s\" in URI: %s", path, location));
         }
 
-        return new TcpResourceAddress(this, uriOriginal, uriLocation);
+        return new TcpResourceAddress(this, original, uriLocation);
     }
 
     @Override
@@ -242,4 +251,25 @@ public class TcpResourceAddressFactorySpi extends ResourceAddressFactorySpi<TcpR
         }
         return newHost;
     }
+
+    /**
+     * Throw error on specific circumstances:
+     *   - no addresses available for binding
+     *   - when PreferedIPv4 flag is true and the host IP is IPV6
+     * @param location
+     * @param tcpAddresses
+     */
+    private void throwPreferedIPv4StackIPv6AddressError(String location, List<TcpResourceAddress> tcpAddresses) {
+        try {
+            InetAddress address = InetAddress.getByName(URIUtils.getHost(location));
+            boolean preferIPv4Stack = Boolean.parseBoolean(System.getProperty(JAVA_NET_PREFER_IPV4_STACK));
+            if (preferIPv4Stack && (address instanceof Inet6Address)) {
+                throw new IllegalArgumentException(format(PREFER_IPV4_STACK_IPV6_ADDRESS_EXCEPTION_FORMATTER, location));
+            }
+        } catch (UnknownHostException e) {
+            // InetAddress.getByName(hostAddress) throws an exception (hostAddress may have an
+            // unsupported format, e.g. network interface syntax)
+        }
+    }
+
 }

@@ -30,12 +30,12 @@
         <dependency>
             <groupId>org.kaazing</groupId>
             <artifactId>mina-core</artifactId>
-            <version>${kaazing.mina.version}</version>
+            <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>org.kaazing</groupId>
             <artifactId>mina-integration-beans</artifactId>
-            <version>${kaazing.mina.version}</version>
+            <version>${project.version}</version>
             <exclusions>
                 <exclusion>
                     <groupId>org.kaazing</groupId>
@@ -46,7 +46,7 @@
         <dependency>
             <groupId>org.kaazing</groupId>
             <artifactId>mina-integration-jmx</artifactId>
-            <version>${kaazing.mina.version}</version>
+            <version>${project.version}</version>
             <exclusions>
                 <exclusion>
                     <groupId>org.kaazing</groupId>
@@ -57,7 +57,7 @@
         <dependency>
             <groupId>org.kaazing</groupId>
             <artifactId>mina-integration-ognl</artifactId>
-            <version>${kaazing.mina.version}</version>
+            <version>${project.version}</version>
             <exclusions>
                 <exclusion>
                     <groupId>org.kaazing</groupId>
@@ -132,10 +132,9 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-checkstyle-plugin</artifactId>
-                <version>2.11</version>
+                <version>${checkstyle.plugin.version}</version>
                 <executions>
                     <execution>
-                        <id>validate</id>
                         <phase>validate</phase>
                         <configuration>
                             <encoding>UTF-8</encoding>
@@ -155,7 +154,7 @@
                     <dependency>
                         <groupId>org.kaazing</groupId>
                         <artifactId>code.quality</artifactId>
-                        <version>1.1</version>
+                        <version>${code.quality.version}</version>
                     </dependency>
                 </dependencies>
             </plugin>
@@ -327,7 +326,6 @@
     </profiles>
 
     <properties>
-        <kaazing.mina.version>${project.version}</kaazing.mina.version>
         <checkstyle.config.location>org/kaazing/code/quality/checkstyle.xml</checkstyle.config.location>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <skipTests>true</skipTests>

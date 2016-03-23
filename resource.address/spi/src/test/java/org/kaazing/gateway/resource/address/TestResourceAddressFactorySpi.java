@@ -15,10 +15,10 @@
  */
 package org.kaazing.gateway.resource.address;
 
-import static org.kaazing.gateway.resource.address.URIUtils.getAuthority;
-import static org.kaazing.gateway.resource.address.URIUtils.getPath;
-import static org.kaazing.gateway.resource.address.URIUtils.modifyURIAuthority;
-import static org.kaazing.gateway.resource.address.URIUtils.modifyURIPath;
+import static org.kaazing.gateway.resource.address.uri.URIUtils.getAuthority;
+import static org.kaazing.gateway.resource.address.uri.URIUtils.getPath;
+import static org.kaazing.gateway.resource.address.uri.URIUtils.modifyURIAuthority;
+import static org.kaazing.gateway.resource.address.uri.URIUtils.modifyURIPath;
 
 import java.net.URI;
 import java.util.ArrayList;
@@ -35,9 +35,8 @@ public final class TestResourceAddressFactorySpi extends ResourceAddressFactoryS
 
     @Override
     protected TestResourceAddress newResourceAddress0(String original, String location) {
-        URI uriOriginal = URI.create(original);
         URI uriLocation = URI.create(location);
-        return new TestResourceAddress(this, uriOriginal, uriLocation);
+        return new TestResourceAddress(this, original, uriLocation);
     }
 
     @Override

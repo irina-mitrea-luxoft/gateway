@@ -31,6 +31,7 @@ import java.util.Set;
 
 import javax.management.MBeanServer;
 
+import org.kaazing.gateway.server.GatewayObserver;
 import org.kaazing.gateway.server.Launcher;
 import org.kaazing.gateway.server.config.sep2014.AuthenticationType;
 import org.kaazing.gateway.server.config.sep2014.AuthenticationType.AuthorizationMode;
@@ -80,7 +81,8 @@ public class Gateway {
         STARTING, STARTED, STOPPING, STOPPED
     }
 
-    private final Launcher launcher = new Launcher();
+    private final GatewayObserver gatewayObserver = GatewayObserver.newInstance();
+    private final Launcher launcher = new Launcher(gatewayObserver);
     private volatile State state = State.STOPPED;
 
     public void start(GatewayConfiguration configuration) throws Exception {
@@ -120,7 +122,10 @@ public class Gateway {
 
         GatewayContextResolver resolver = new GatewayContextResolver(securityResolver, webRootDir, tempDir,
                 jmxMBeanServer);
-        GatewayContext context = resolver.resolve(gatewayConfigDocument, asProperties(configuration.getProperties()));
+        Properties properties = new Properties();
+        properties.putAll(configuration.getProperties());
+        gatewayObserver.initingGateway(properties, resolver.getInjectables());
+        GatewayContext context = resolver.resolve(gatewayConfigDocument, properties);
         return context;
     }
 
@@ -276,8 +281,7 @@ public class Gateway {
                 }
             }
         } catch (Exception e) {
-            // TODO
-            e.printStackTrace();
+            throw new RuntimeException(e);
         }
     }
 
@@ -386,23 +390,24 @@ public class Gateway {
 
     private void appendAcceptOptions(ServiceType newService, ServiceConfiguration service) throws Exception {
         // accept-options
-        try {
-            Map<String, String> acceptOptions = service.getAcceptOptions();
-            if (!acceptOptions.isEmpty()) {
-                ServiceAcceptOptionsType newAcceptOptions = newService.addNewAcceptOptions();
-                Node domNode = newAcceptOptions.getDomNode();
-                Document ownerDocument = domNode.getOwnerDocument();
-                for (Entry<String, String> acceptOption : acceptOptions.entrySet()) {
+        Map<String, String> acceptOptions = service.getAcceptOptions();
+        if (!acceptOptions.isEmpty()) {
+            ServiceAcceptOptionsType newAcceptOptions = newService.addNewAcceptOptions();
+            Node domNode = newAcceptOptions.getDomNode();
+            Document ownerDocument = domNode.getOwnerDocument();
+            for (Entry<String, String> acceptOption : acceptOptions.entrySet()) {
+                try {
                     Element newElement = ownerDocument
                             .createElementNS(domNode.getNamespaceURI(), acceptOption.getKey());
                     Text newTextNode = ownerDocument.createTextNode(acceptOption.getValue());
                     newElement.appendChild(newTextNode);
                     domNode.appendChild(newElement);
+                } catch (Exception e) {
+                    String message = String.format("Processing of accept option %s %s failed with exception %s",
+                            acceptOption.getKey(), acceptOption.getValue(), e);
+                    throw new Exception(message, e);
                 }
             }
-        } catch (Exception e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
         }
     }
 
@@ -420,23 +425,25 @@ public class Gateway {
     }
 
     public void appendConnectOptions(ServiceType newService, ServiceConfiguration service) throws Exception {
-        try {
-            Map<String, String> connectOptions = service.getConnectOptions();
-            if (!connectOptions.isEmpty()) {
-                ServiceConnectOptionsType newConnectOptions = newService.addNewConnectOptions();
-                Node domNode = newConnectOptions.getDomNode();
-                Document ownerDocument = domNode.getOwnerDocument();
-                for (Entry<String, String> connectOption : connectOptions.entrySet()) {
-                    Element newElement = ownerDocument.createElementNS(domNode.getNamespaceURI(),
-                            connectOption.getKey());
-                    Text newTextNode = ownerDocument.createTextNode(connectOption.getValue());
-                    newElement.appendChild(newTextNode);
-                    domNode.appendChild(newElement);
+        Map<String, String> connectOptions = service.getConnectOptions();
+        if (!connectOptions.isEmpty()) {
+            ServiceConnectOptionsType newConnectOptions = newService.addNewConnectOptions();
+            Node domNode = newConnectOptions.getDomNode();
+            Document ownerDocument = domNode.getOwnerDocument();
+            for (Entry<String, String> connectOption : connectOptions.entrySet()) {
+                try {
+                Element newElement = ownerDocument.createElementNS(domNode.getNamespaceURI(),
+                        connectOption.getKey());
+                Text newTextNode = ownerDocument.createTextNode(connectOption.getValue());
+                newElement.appendChild(newTextNode);
+                domNode.appendChild(newElement);
+                }
+                catch (Exception e) {
+                    String message = String.format("Processing of connect option %s %s failed with exception %s",
+                            connectOption.getKey(), connectOption.getValue(), e);
+                    throw new Exception(message, e);
                 }
             }
-        } catch (Exception e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
         }
     }
 

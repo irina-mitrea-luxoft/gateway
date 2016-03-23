@@ -15,11 +15,11 @@
  */
 package org.kaazing.gateway.service.http.balancer;
 
-import static org.kaazing.gateway.resource.address.URIUtils.buildURIAsString;
-import static org.kaazing.gateway.resource.address.URIUtils.getAuthority;
-import static org.kaazing.gateway.resource.address.URIUtils.getPath;
-import static org.kaazing.gateway.resource.address.URIUtils.getQuery;
-import static org.kaazing.gateway.resource.address.URIUtils.getScheme;
+import static org.kaazing.gateway.resource.address.uri.URIUtils.buildURIAsString;
+import static org.kaazing.gateway.resource.address.uri.URIUtils.getAuthority;
+import static org.kaazing.gateway.resource.address.uri.URIUtils.getPath;
+import static org.kaazing.gateway.resource.address.uri.URIUtils.getQuery;
+import static org.kaazing.gateway.resource.address.uri.URIUtils.getScheme;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -47,6 +47,8 @@ import org.kaazing.gateway.transport.sse.SseProtocol;
 import org.kaazing.gateway.transport.ws.WsProtocol;
 import org.kaazing.gateway.transport.wseb.WsebAcceptor;
 import org.kaazing.gateway.transport.wsn.WsnSession;
+import org.kaazing.gateway.util.GL;
+
 
 /**
  * Gateway service of type "balancer".
@@ -92,6 +94,8 @@ public class HttpBalancerService implements Service {
 
         // Register the Gateway's connection capabilities with the handlers so that session counts are tracked
         wsebHandler.setTransportFactory(transportFactory);
+        GL.info(GL.CLUSTER_LOGGER_NAME,"Finished  HttpBalancerService.init()");
+        clusterContext.logClusterStateAtInfoLevel();
     }
 
     @Override
@@ -110,6 +114,7 @@ public class HttpBalancerService implements Service {
                         String selectedBalanceeURI = availableBalanceeURIs.get((int) (Math.random() * availableBalanceeURIs.size()));
                         selectedBalanceeURIs = new ArrayList<>(1);
                         selectedBalanceeURIs.add(selectedBalanceeURI);
+                        GL.debug(GL.CLUSTER_LOGGER_NAME, "HttpBalancerService initializeSession Selected Balancee URI: {}", selectedBalanceeURI);
                     }
                     IoSession parent = httpSession.getParent();
                     parent.setAttribute(BALANCEES_KEY, selectedBalanceeURIs);

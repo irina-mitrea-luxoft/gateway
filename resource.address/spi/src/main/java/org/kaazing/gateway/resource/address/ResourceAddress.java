@@ -37,12 +37,14 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
+import org.kaazing.gateway.resource.address.uri.URIUtils;
+
 public abstract class ResourceAddress extends SocketAddress implements ResourceOptions {
 
     private static final long serialVersionUID = 1L;
 
     public static final ResourceOption<String> NEXT_PROTOCOL = new NextProtocolOption();
-    public static final ResourceOption<URI> TRANSPORT_URI = new TransportURIOption();
+    public static final ResourceOption<String> TRANSPORT_URI = new TransportURIStringOption();
     public static final ResourceOption<ResourceAddress> TRANSPORT = new TransportOption();
     public static final ResourceOption<ResourceAddress> ALTERNATE = new AlternateOption();
     public static final ResourceOption<NameResolver> RESOLVER = new ResolverOption(); // consider moving to TcpResourceAddress, ...
@@ -55,12 +57,12 @@ public abstract class ResourceAddress extends SocketAddress implements ResourceO
 
     private final ResourceAddressFactorySpi factory;
     public static final DefaultResourceOption<IdentityResolver> IDENTITY_RESOLVER = new IdentityResolverOption();
-    private final URI externalURI;
+    private final String externalURI;
     private final URI resourceURI;
 
     private String nextProtocol;
     private ResourceAddress transport;
-    private URI transportURI;
+    private String transportURI;
     private ResourceAddress alternate;
     private NameResolver resolver;
     private Object qualifier;
@@ -68,22 +70,22 @@ public abstract class ResourceAddress extends SocketAddress implements ResourceO
     private Boolean connectRequiresInit;
     private IdentityResolver identityResolver;
 
-    public ResourceAddress(ResourceAddressFactorySpi factory, URI externalURI, URI resourceURI) {
+    public ResourceAddress(ResourceAddressFactorySpi factory, String original, URI resourceURI) {
         this.factory = Objects.requireNonNull(factory, "factory");
-        this.externalURI = Objects.requireNonNull(externalURI, "externalURI");
+        this.externalURI = Objects.requireNonNull(original, "externalURI");
         this.resourceURI = Objects.requireNonNull(resourceURI, "resourceURI");
     }
 
     // note: used by pipe://
     protected ResourceAddress(ResourceAddressFactorySpi factory, URI resourceURI) {
-        this(factory, resourceURI, resourceURI);
+        this(factory, URIUtils.uriToString(resourceURI), resourceURI);
     }
     
     public URI getResource() {
         return resourceURI;
     }
     
-    public URI getExternalURI() {
+    public String getExternalURI() {
         return externalURI;
     }
     
@@ -199,7 +201,7 @@ public abstract class ResourceAddress extends SocketAddress implements ResourceO
 
     protected final ResourceAddress resolve(String oldPath, String newPath) {
         URI addressURI = getResource();
-        URI externalURI = getExternalURI();
+        String externalURI = getExternalURI();
 
         boolean newPathDiffersFromOld = !oldPath.equals(newPath);
         if ( !newPathDiffersFromOld ) {
@@ -212,10 +214,10 @@ public abstract class ResourceAddress extends SocketAddress implements ResourceO
         }
 
         URI newResourceURI = addressURI.resolve(newPath);
-        URI newExternalURI = externalURI.resolve(newPath);
+        String newExternalURI = URIUtils.resolve(externalURI, newPath);
         ResourceOptions newOptions = FACTORY.newResourceOptions(this);
         resolve(oldPath, newPath, newOptions);
-        String externalUriToString = URIUtils.uriToString(newExternalURI);
+        String externalUriToString = newExternalURI;
         String newResourceUriToString = URIUtils.uriToString(newResourceURI);
         return factory.newResourceAddress0(externalUriToString, newResourceUriToString, newOptions);
     }
@@ -271,7 +273,7 @@ public abstract class ResourceAddress extends SocketAddress implements ResourceO
                     nextProtocol = (String) value;
                     return;
                 case TRANSPORT_URI:
-                    transportURI = (URI) value;
+                    transportURI = (String) value;
                     return;
                 case TRANSPORT:
                     transport = (ResourceAddress) value;
@@ -414,8 +416,8 @@ public abstract class ResourceAddress extends SocketAddress implements ResourceO
         }
     }
     
-    private static class TransportURIOption extends DefaultResourceOption<URI> {
-        private TransportURIOption() {
+    private static class TransportURIStringOption extends DefaultResourceOption<String> {
+        private TransportURIStringOption() {
             super(Kind.TRANSPORT_URI, "transportURI");
         }
     }
@@ -489,7 +491,6 @@ public abstract class ResourceAddress extends SocketAddress implements ResourceO
                     if (wildcard != null) {
                         return wildcard.getAllByName(host);
                     }
-
                     return asList(InetAddress.getAllByName(host));
                 }
             });
