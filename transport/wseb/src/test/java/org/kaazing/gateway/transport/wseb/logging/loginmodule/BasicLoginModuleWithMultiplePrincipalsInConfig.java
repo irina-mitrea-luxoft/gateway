@@ -24,8 +24,17 @@ public class BasicLoginModuleWithMultiplePrincipalsInConfig extends BasicLoginMo
 
     @Override
     public boolean commit() throws LoginException {
-        super.commit();
-        subject.getPrincipals().add(unixPrincipal);
-        return succeeded;
+        if (super.commit()) {
+            subject.getPrincipals().add(unixPrincipal);
+            return true;
+        }
+        return false;
+    }
+
+    @Override
+    public boolean logout() throws LoginException {
+        super.logout();
+        subject.getPrincipals().remove(unixPrincipal);
+        return true;
     }
 }
