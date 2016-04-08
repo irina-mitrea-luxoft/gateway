@@ -17,6 +17,7 @@ package org.kaazing.gateway.service.http.balancer;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
 
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.RuleChain;
@@ -26,6 +27,7 @@ import org.kaazing.gateway.server.test.config.builder.GatewayConfigurationBuilde
 import org.kaazing.test.util.ITUtil;
 import org.kaazing.test.util.ResolutionTestUtils;
 
+@Ignore
 public class ClusterBalancerServiceIT {
     private static String networkInterface = ResolutionTestUtils.getLoopbackInterface();
 
